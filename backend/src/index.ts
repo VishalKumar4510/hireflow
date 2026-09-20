@@ -21,7 +21,7 @@ import { setAIProvider } from './ai/provider';
 import { createGeminiProvider } from './ai/gemini-provider';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 3001;
 
 // Middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

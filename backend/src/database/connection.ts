@@ -13,6 +13,10 @@ export function isDatabaseConnected(): boolean {
 
 export function getPool(): Pool {
   if (!pool) {
+    const isRemote = process.env.DATABASE_URL &&
+      !process.env.DATABASE_URL.includes('localhost') &&
+      !process.env.DATABASE_URL.includes('127.0.0.1');
+
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       host: process.env.DB_HOST || 'localhost',
@@ -20,6 +24,7 @@ export function getPool(): Pool {
       database: process.env.DB_NAME || 'hireflow',
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
+      ssl: isRemote ? { rejectUnauthorized: false } : false,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
@@ -84,7 +89,13 @@ export async function initDatabase() {
     console.log('✅ PostgreSQL connected');
 
     // Run schema
-    const schemaPath = path.resolve(__dirname, 'schema.sql');
+    let schemaPath = path.resolve(__dirname, 'schema.sql');
+    if (!fs.existsSync(schemaPath)) {
+      schemaPath = path.resolve(__dirname, '../../src/database/schema.sql');
+    }
+    if (!fs.existsSync(schemaPath)) {
+      schemaPath = path.resolve(process.cwd(), 'src/database/schema.sql');
+    }
     if (fs.existsSync(schemaPath)) {
       const schema = fs.readFileSync(schemaPath, 'utf-8');
       await p.query(schema);

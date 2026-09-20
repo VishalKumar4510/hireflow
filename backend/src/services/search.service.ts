@@ -100,7 +100,7 @@ export class SearchService {
 
     const result = await query(sql, params);
 
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       candidate_id: row.candidate_id,
       candidate_name: row.candidate_name,
       job_id: row.job_id,

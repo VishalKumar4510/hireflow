@@ -235,7 +235,7 @@ export class CandidateService {
     }
 
     const ai = getAIProvider();
-    const candidateSummaries = candidates.map(c => ({
+    const candidateSummaries = candidates.map((c: any) => ({
       id: c.id,
       name: c.name,
       skills: c.skills,

@@ -1,4 +1,19 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+export const getApiBaseUrl = (): string => {
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('hireflow_api_url')?.trim().replace(/\/+$/, '') : '';
+  const env = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  const base = custom || env || '/api';
+  return base.endsWith('/api') ? base : `${base}/api`;
+};
+
+export const setApiBaseUrl = (url: string) => {
+  if (typeof window === 'undefined') return;
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (trimmed) {
+    localStorage.setItem('hireflow_api_url', trimmed);
+  } else {
+    localStorage.removeItem('hireflow_api_url');
+  }
+};
 
 class ApiClient {
   private token: string | null = null;
@@ -34,10 +49,20 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    const baseUrl = getApiBaseUrl();
+    let response: Response;
+
+    try {
+      response = await fetch(`${baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (err: unknown) {
+      const errorMsg = (err as Error).message || '';
+      throw new Error(
+        `Cannot reach backend API at "${baseUrl}". If your backend is hosted on Render, verify it is running or set VITE_API_URL in Vercel settings. (${errorMsg})`
+      );
+    }
 
     if (response.status === 401) {
       this.setToken(null);
@@ -46,8 +71,13 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || `Request failed: ${response.status}`);
+      const errorData = await response.json().catch(() => null);
+      if (response.status === 404) {
+        throw new Error(
+          `Backend endpoint not found (404) at "${baseUrl}${endpoint}". Please check your backend URL configuration.`
+        );
+      }
+      throw new Error(errorData?.error || `Request failed with status ${response.status}`);
     }
 
     return response.json();
@@ -125,7 +155,7 @@ class ApiClient {
     if (onProgress) {
       return new Promise<Record<string, unknown>>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE}/candidates/upload/${jobId}`);
+        xhr.open('POST', `${getApiBaseUrl()}/candidates/upload/${jobId}`);
         
         const token = this.getToken();
         if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
